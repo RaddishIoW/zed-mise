@@ -1,0 +1,30 @@
+#:schema https://mise.en.dev/schema/mise.json
+
+# Dev config for this extension — also serves as a live example of what the
+# extension targets (open this file in Zed to see the "Mise" language + schema).
+
+[tools]
+rust = "stable"
+
+[tasks.build-server]
+description = "Build the mise-mcp MCP server (release)"
+run = "cargo build --release --manifest-path mise-mcp/Cargo.toml"
+
+[tasks.build-extension]
+description = "Compile the Zed extension crate to wasm32-wasip1"
+run = "cargo build --release --target wasm32-wasip1"
+
+[tasks.check]
+description = "Type-check both crates"
+run = [
+    "cargo check --manifest-path mise-mcp/Cargo.toml",
+    "cargo check --target wasm32-wasip1",
+]
+
+[tasks.fmt]
+description = "Format all Rust code"
+run = "cargo fmt --all"
+
+[tasks.build]
+description = "Build everything"
+depends = ["build-server", "build-extension"]

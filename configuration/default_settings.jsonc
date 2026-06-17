@@ -1,0 +1,11 @@
+{
+  // Allow state-changing mise commands (install, use, run a task, edit config…).
+  // Read-only tools work regardless of this setting.
+  "allow_write": false
+
+  // Optional: absolute path mise should operate in when a tool call omits `cwd`.
+  // "project_root": "/absolute/path/to/your/project"
+
+  // Optional: use a locally built mise-mcp instead of a downloaded release binary.
+  // "binary_path": "/absolute/path/to/zed-mise/mise-mcp/target/release/mise-mcp"
+}

@@ -1,0 +1,24 @@
+# Standalone host-native MCP server binary. The empty `[workspace]` table makes
+# this crate its own workspace root, fully decoupled from the extension crate at
+# the repo root (so Zed's wasm build never pulls it in, and `cargo` doesn't try
+# to treat it as a member of the extension package).
+[workspace]
+
+[package]
+name = "mise-mcp"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "MCP server exposing mise tool/task/config operations."
+
+[[bin]]
+name = "mise-mcp"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true

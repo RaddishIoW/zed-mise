@@ -1,0 +1,39 @@
+name: release
+
+# Build the `mise-mcp` server for every platform the extension downloads, and
+# attach the archives to the GitHub release. Asset names are `mise-mcp-<target>.{tar.gz,zip}`,
+# which is exactly what `src/lib.rs::mise_mcp_binary` looks for.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  upload-binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and upload mise-mcp
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: mise-mcp
+          manifest-path: mise-mcp/Cargo.toml
+          target: ${{ matrix.target }}
+          archive: mise-mcp-$target
+          token: ${{ secrets.GITHUB_TOKEN }}

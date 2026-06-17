@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "allow_write": {
+      "type": "boolean",
+      "default": false,
+      "description": "Allow the mise MCP server to run state-changing commands (install, use, uninstall, upgrade, run task, config set, set env, trust, sync tasks). Read-only tools always work."
+    },
+    "project_root": {
+      "type": "string",
+      "description": "Optional absolute path mise should operate in when a tool call does not specify `cwd`. Defaults to the server process working directory."
+    },
+    "binary_path": {
+      "type": "string",
+      "description": "Optional absolute path to a locally built `mise-mcp` binary. When set, the extension uses it instead of downloading a release binary (useful for development)."
+    }
+  },
+  "additionalProperties": false
+}

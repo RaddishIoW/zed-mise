@@ -1,0 +1,16 @@
+name = "Mise"
+grammar = "toml"
+# Suffix matches are longest-wins, so these beat the generic `.toml` association.
+# Covers `mise.toml`, `.mise.toml`, and `mise.local.toml`. Environment-specific
+# files (`mise.<env>.toml`) and `**/mise/config.toml` are not suffix-matchable;
+# add a `#:schema https://mise.en.dev/schema/mise.json` directive there, or map
+# them via the `file_types` setting.
+path_suffixes = ["mise.toml", "mise.local.toml"]
+line_comments = ["# "]
+autoclose_before = ",]}"
+brackets = [
+    { start = "{", end = "}", close = true, newline = true },
+    { start = "[", end = "]", close = true, newline = true },
+    { start = "\"", end = "\"", close = true, newline = false, not_in = ["comment", "string"] },
+    { start = "'", end = "'", close = true, newline = false, not_in = ["comment", "string"] },
+]
