@@ -8,4 +8,8 @@
 
   // Optional: use a locally built mise-mcp instead of a downloaded release binary.
   // "binary_path": "/absolute/path/to/zed-mise/mise-mcp/target/release/mise-mcp"
+
+  // Optional: absolute path to mise if it isn't on the editor's PATH
+  // (common with remote/devcontainer setups). Find it with `which mise`.
+  // "mise_path": "/home/you/.local/bin/mise"
 }

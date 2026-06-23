@@ -180,6 +180,9 @@ impl zed::Extension for MiseExtension {
         // development before any GitHub release exists). When unset, the binary is
         // downloaded from GitHub releases.
         let mut binary_path: Option<String> = None;
+        // `mise_path` overrides how the server locates the `mise` executable
+        // (forwarded as MISE_BIN). Useful when mise isn't on the editor's PATH.
+        let mut mise_path: Option<String> = None;
 
         if let Ok(settings) = ContextServerSettings::for_project("mise", project) {
             if let Some(value) = settings.settings {
@@ -193,6 +196,10 @@ impl zed::Extension for MiseExtension {
                     .map(String::from);
                 binary_path = value
                     .get("binary_path")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+                mise_path = value
+                    .get("mise_path")
                     .and_then(|v| v.as_str())
                     .map(String::from);
             }
@@ -209,6 +216,9 @@ impl zed::Extension for MiseExtension {
         }
         if let Some(root) = project_root {
             env.push(("MISE_MCP_CWD".into(), root));
+        }
+        if let Some(path) = mise_path {
+            env.push(("MISE_BIN".into(), path));
         }
 
         Ok(Command { command, args: Vec::new(), env })

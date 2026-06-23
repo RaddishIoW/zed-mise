@@ -83,6 +83,19 @@ Push a `v*` tag. `.github/workflows/release.yml` cross-compiles `mise-mcp` for
 macOS (arm64/x64), Linux (arm64/x64), and Windows (x64) and attaches archives
 named `mise-mcp-<target>.{tar.gz,zip}` — which `src/lib.rs` downloads at runtime.
 
+## Troubleshooting
+
+**"could not run mise" / "mise not found":** editor-launched processes often run
+with a minimal `PATH` that excludes `~/.local/bin`, so the server may not find
+mise even though it works in your terminal (common with remote/devcontainer
+setups). The server searches `PATH`, common install locations, and your login
+shell automatically; if that still fails, set `mise_path` to the absolute path
+from `which mise`:
+
+```jsonc
+{ "context_servers": { "mise": { "settings": { "mise_path": "/home/you/.local/bin/mise" } } } }
+```
+
 ## Known limitations / TODO
 
 - **taplo schema association** is configured via `language_server_workspace_configuration`;

@@ -5,8 +5,13 @@ environment — listing/installing tools, listing/running tasks, and editing con
 
 ## Requirements
 
-- `mise` must be installed and available on your `PATH`
-  (see https://mise.jdx.dev/getting-started.html). Verify with `mise --version`.
+- `mise` must be installed (see https://mise.jdx.dev/getting-started.html).
+  Verify with `mise --version`.
+
+The server tries hard to locate `mise` even when the editor's `PATH` is minimal
+(it searches `PATH`, common install locations, and your login shell). If you still
+see a "could not run mise" error — common in remote or devcontainer setups — set
+`"mise_path"` below to the absolute path from `which mise`.
 
 The server binary itself is downloaded automatically by this extension.
 

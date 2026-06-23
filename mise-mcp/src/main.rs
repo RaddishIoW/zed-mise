@@ -11,6 +11,7 @@
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 
 use serde_json::{json, Value};
 
@@ -214,12 +215,97 @@ fn resolve_cwd(args: &Value) -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
+/// Resolve (once) the absolute path to the `mise` binary. Editor-launched
+/// processes frequently run with a minimal PATH, so relying on `mise` being on
+/// PATH is not enough. Resolution order:
+///   1. `MISE_BIN` env (set from the `mise_path` extension setting).
+///   2. `mise` found on the current PATH.
+///   3. Common install locations (`~/.local/bin`, Homebrew, `/usr/local/bin`…).
+///   4. Ask the user's login/interactive shell (`command -v mise`).
+/// Falls back to the bare name `mise` so `run_mise` can emit a helpful error.
+fn mise_bin() -> &'static str {
+    static BIN: OnceLock<String> = OnceLock::new();
+    BIN.get_or_init(resolve_mise_bin)
+}
+
+fn resolve_mise_bin() -> String {
+    if let Ok(p) = std::env::var("MISE_BIN") {
+        if !p.is_empty() && is_file(&p) {
+            return p;
+        }
+    }
+    if let Some(p) = find_on_path("mise") {
+        return p;
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let candidates = [
+        format!("{home}/.local/bin/mise"),
+        format!("{home}/.local/share/mise/bin/mise"),
+        "/opt/homebrew/bin/mise".to_string(),
+        "/usr/local/bin/mise".to_string(),
+        "/usr/bin/mise".to_string(),
+        "/home/linuxbrew/.linuxbrew/bin/mise".to_string(),
+    ];
+    for c in candidates {
+        if is_file(&c) {
+            return c;
+        }
+    }
+    if let Some(p) = resolve_via_shell() {
+        return p;
+    }
+    "mise".to_string()
+}
+
+fn is_file(path: &str) -> bool {
+    std::fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
+}
+
+fn find_on_path(name: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+        .map(|candidate| candidate.to_string_lossy().into_owned())
+}
+
+/// Ask the user's shell to resolve `mise`, so we pick up PATH set in shell rc
+/// files / mise activation. Tries login (`-lc`) then interactive (`-ic`).
+fn resolve_via_shell() -> Option<String> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    for flag in ["-lc", "-ic"] {
+        let Ok(output) = Command::new(&shell).arg(flag).arg("command -v mise").output() else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        // Interactive shells may print banners first; take the last non-empty line.
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if let Some(line) = stdout.lines().rev().find(|l| !l.trim().is_empty()) {
+            let path = line.trim().to_string();
+            if is_file(&path) {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
 fn run_mise(args: &[&str], cwd: &Path) -> Result<String, String> {
-    let output = Command::new("mise")
+    let bin = mise_bin();
+    let output = Command::new(bin)
         .args(args)
         .current_dir(cwd)
         .output()
-        .map_err(|e| format!("failed to run `mise` (is it installed and on PATH?): {e}"))?;
+        .map_err(|e| {
+            format!(
+                "could not run mise (resolved to `{bin}`): {e}.\n\
+                 Install mise (https://mise.jdx.dev/getting-started.html), or set the \
+                 `mise_path` setting (or MISE_BIN env) to mise's absolute path. Editor-launched \
+                 processes often have a minimal PATH that excludes ~/.local/bin."
+            )
+        })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();

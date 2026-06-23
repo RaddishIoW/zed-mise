@@ -1,4 +1,6 @@
 /target
 **/target
 *.wasm
+# Build artifacts Zed writes into the extension dir when compiling a dev extension.
+/grammars
 .DS_Store

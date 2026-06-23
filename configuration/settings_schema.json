@@ -13,6 +13,10 @@
     "binary_path": {
       "type": "string",
       "description": "Optional absolute path to a locally built `mise-mcp` binary. When set, the extension uses it instead of downloading a release binary (useful for development)."
+    },
+    "mise_path": {
+      "type": "string",
+      "description": "Optional absolute path to the `mise` executable. Set this if mise is not found on the editor's PATH (common in remote/devcontainer setups). The server otherwise searches PATH, common install locations, and your login shell."
     }
   },
   "additionalProperties": false
