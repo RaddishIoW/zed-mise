@@ -11,7 +11,20 @@ permissions:
   contents: write
 
 jobs:
+  # Pushing a tag does not create a GitHub Release; the upload step needs one to
+  # exist, so create it first. Idempotent: a re-run won't fail if it already exists.
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        run: gh release create "$TAG" --repo "$REPO" --title "$TAG" --generate-notes || true
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   upload-binaries:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
