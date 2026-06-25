@@ -50,3 +50,11 @@ jobs:
           target: ${{ matrix.target }}
           archive: mise-mcp-$target
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and upload mise-lsp
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: mise-lsp
+          manifest-path: mise-lsp/Cargo.toml
+          target: ${{ matrix.target }}
+          archive: mise-lsp-$target
+          token: ${{ secrets.GITHUB_TOKEN }}

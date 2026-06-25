@@ -1,32 +1,38 @@
 //! Zed extension entry point for Mise.
 //!
-//! Provides three things (all that Zed's sandboxed extension API allows):
+//! Provides (all that Zed's sandboxed extension API allows):
 //!   1. A `taplo` language server for Mise config files, configured to validate
 //!      against Mise's published JSON schema (schema-aware completion + diagnostics).
-//!   2. An MCP context server (`mise-mcp`) exposing tool/task/config operations to
-//!      Zed's agent. The native binary is downloaded from GitHub releases on demand.
-//!   3. (via the MCP server) syncing Mise tasks into `.zed/tasks.json` so they show
+//!   2. Our own `mise-lsp` language server adding version-bump inlay hints and
+//!      upgrade code actions to mise.toml / .tool-versions.
+//!   3. An MCP context server (`mise-mcp`) exposing tool/task/config operations to
+//!      Zed's agent. Native binaries are downloaded from GitHub releases on demand.
+//!   4. (via the MCP server) syncing Mise tasks into `.zed/tasks.json` so they show
 //!      up in Zed's built-in task picker.
 
 use std::fs;
 
 use zed_extension_api::{
-    self as zed, serde_json, settings::ContextServerSettings, Architecture, Command,
-    ContextServerConfiguration, ContextServerId, DownloadedFileType, GithubReleaseOptions,
+    self as zed, serde_json, settings::ContextServerSettings, settings::LspSettings, Architecture,
+    Command, ContextServerConfiguration, ContextServerId, DownloadedFileType, GithubReleaseOptions,
     LanguageServerId, Os, Project, Result, Worktree,
 };
 
 /// Mise's hosted JSON schema for `mise.toml`. See https://mise.jdx.dev/configuration.html
 const MISE_SCHEMA_URL: &str = "https://mise.en.dev/schema/mise.json";
 const TAPLO_REPO: &str = "tamasfe/taplo";
-/// TODO: point this at the repository that publishes prebuilt `mise-mcp` binaries
+/// Repository that publishes the prebuilt `mise-mcp` / `mise-lsp` binaries
 /// (the GitHub Actions release workflow in `.github/workflows/release.yml`).
-const MISE_MCP_REPO: &str = "raddishiow/zed-mise";
+const MISE_REPO: &str = "raddishiow/zed-mise";
+/// The language server id (matching `[language_servers.mise-lsp]`) for our own
+/// version-intelligence server, vs `mise-taplo` for schema validation.
+const MISE_LSP_ID: &str = "mise-lsp";
 
 #[derive(Default)]
 struct MiseExtension {
     taplo_path: Option<String>,
     mise_mcp_path: Option<String>,
+    mise_lsp_path: Option<String>,
 }
 
 impl MiseExtension {
@@ -77,20 +83,20 @@ impl MiseExtension {
         Ok(binary)
     }
 
-    /// Download (and cache) the `mise-mcp` server binary for this platform.
-    fn mise_mcp_binary(&mut self) -> Result<String> {
-        if let Some(path) = &self.mise_mcp_path {
+    /// Download (and cache) one of our release binaries (`mise-mcp` / `mise-lsp`)
+    /// for this platform. Asset names use Rust target triples; see release.yml.
+    fn release_binary(name: &str, cache: &mut Option<String>) -> Result<String> {
+        if let Some(path) = cache.as_ref() {
             if fs::metadata(path).is_ok() {
                 return Ok(path.clone());
             }
         }
 
         let release = zed::latest_github_release(
-            MISE_MCP_REPO,
+            MISE_REPO,
             GithubReleaseOptions { require_assets: true, pre_release: false },
         )?;
         let (os, arch) = zed::current_platform();
-        // Asset names use Rust target triples; see release.yml.
         let target = match (&os, &arch) {
             (Os::Mac, Architecture::Aarch64) => "aarch64-apple-darwin",
             (Os::Mac, Architecture::X8664) => "x86_64-apple-darwin",
@@ -101,19 +107,16 @@ impl MiseExtension {
         };
         let is_windows = matches!(os, Os::Windows);
         let ext = if is_windows { "zip" } else { "tar.gz" };
-        let asset_name = format!("mise-mcp-{target}.{ext}");
+        let asset_name = format!("{name}-{target}.{ext}");
         let asset = release
             .assets
             .iter()
             .find(|a| a.name == asset_name)
-            .ok_or_else(|| format!("no mise-mcp release asset named `{asset_name}`"))?;
+            .ok_or_else(|| format!("no `{name}` release asset named `{asset_name}`"))?;
 
-        let dir = format!("mise-mcp-{}", release.version);
+        let dir = format!("{name}-{}", release.version);
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let binary = format!(
-            "{dir}/mise-mcp{}",
-            if is_windows { ".exe" } else { "" }
-        );
+        let binary = format!("{dir}/{name}{}", if is_windows { ".exe" } else { "" });
         if fs::metadata(&binary).is_err() {
             let file_type = if is_windows {
                 DownloadedFileType::Zip
@@ -123,8 +126,27 @@ impl MiseExtension {
             zed::download_file(&asset.download_url, &dir, file_type)?;
             zed::make_file_executable(&binary)?;
         }
-        self.mise_mcp_path = Some(binary.clone());
+        *cache = Some(binary.clone());
         Ok(binary)
+    }
+
+    /// Command for our `mise-lsp` server: a downloaded (or `lsp.mise-lsp.binary.path`)
+    /// binary, told where to find `mise` via MISE_BIN (resolved from the worktree's
+    /// shell PATH, which is more reliable than the server's own environment).
+    fn mise_lsp_command(&mut self, worktree: &Worktree) -> Result<Command> {
+        let configured = LspSettings::for_worktree(MISE_LSP_ID, worktree)
+            .ok()
+            .and_then(|s| s.binary)
+            .and_then(|b| b.path);
+        let command = match configured {
+            Some(path) => path,
+            None => Self::release_binary("mise-lsp", &mut self.mise_lsp_path)?,
+        };
+        let mut env = Vec::new();
+        if let Some(mise) = worktree.which("mise") {
+            env.push(("MISE_BIN".to_string(), mise));
+        }
+        Ok(Command { command, args: Vec::new(), env })
     }
 }
 
@@ -135,9 +157,13 @@ impl zed::Extension for MiseExtension {
 
     fn language_server_command(
         &mut self,
-        _id: &LanguageServerId,
+        id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<Command> {
+        if id.as_ref() == MISE_LSP_ID {
+            return self.mise_lsp_command(worktree);
+        }
+        // Default: taplo for schema validation.
         let taplo = self.taplo_binary(worktree)?;
         Ok(Command {
             command: taplo,
@@ -148,9 +174,13 @@ impl zed::Extension for MiseExtension {
 
     fn language_server_workspace_configuration(
         &mut self,
-        _id: &LanguageServerId,
+        id: &LanguageServerId,
         _worktree: &Worktree,
     ) -> Result<Option<serde_json::Value>> {
+        // Only taplo takes workspace configuration; mise-lsp needs none.
+        if id.as_ref() == MISE_LSP_ID {
+            return Ok(None);
+        }
         // Tell taplo to validate Mise config files against the Mise schema.
         // The regex keys match `mise.toml`, `mise.local.toml`, `.mise.toml`,
         // `mise.<env>.toml`, and `**/mise/config.toml`.
@@ -207,7 +237,7 @@ impl zed::Extension for MiseExtension {
 
         let command = match binary_path {
             Some(path) => path,
-            None => self.mise_mcp_binary()?,
+            None => Self::release_binary("mise-mcp", &mut self.mise_mcp_path)?,
         };
 
         let mut env: Vec<(String, String)> = Vec::new();

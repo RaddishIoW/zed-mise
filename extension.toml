@@ -25,5 +25,11 @@ path = "tree-sitter-tool-versions"
 name = "Taplo (Mise)"
 languages = ["Mise"]
 
+# Our own language server: version-bump inlay hints + upgrade code actions for
+# mise.toml and .tool-versions (runs alongside taplo).
+[language_servers.mise-lsp]
+name = "Mise"
+languages = ["Mise", "tool-versions"]
+
 # MCP context server exposing mise tool/task/config operations to Zed's agent.
 [context_servers.mise]

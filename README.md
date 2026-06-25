@@ -21,6 +21,11 @@ Mise through the three surfaces Zed actually exposes:
 - **`.tool-versions` highlighting (`languages/tool-versions/`):** a vendored
   tree-sitter grammar (`tree-sitter-tool-versions/`) highlighting tool names,
   versions, and comments in asdf/mise `.tool-versions` files.
+- **Version intelligence (`mise-lsp/`):** a second language server (alongside
+  taplo) that shows the latest available version as an **inlay hint** after each
+  pinned tool version, and offers **code actions** to bump the version in-place
+  ("Update node to 26") — optionally also running `mise install`. Driven by
+  `mise outdated --bump --json`.
 - **MCP server (`mise-mcp/`):** a small native binary speaking MCP over stdio that
   shells out to your `mise` CLI. The extension downloads it from this repo's
   GitHub releases on first use.
@@ -51,6 +56,21 @@ unusual filename (e.g. `mise.<env>.toml`), add a first line:
 
 ```toml
 #:schema https://mise.en.dev/schema/mise.json
+```
+
+### Version checks & upgrades
+In `mise.toml` / `.tool-versions`, an inlay hint (e.g. `→ 26.3.1`) appears after
+any tool whose pinned version has a newer release available. Put the cursor on
+that line and open code actions (the lightbulb) for **"Update <tool> to <ver>"**
+(rewrites the version) or **"… and install"** (also runs `mise install`).
+
+Inlay hints must be enabled in Zed — add `"inlay_hints": { "enabled": true }` to
+your settings if you don't see them. Checks run on open/save.
+
+For local development, point the LSP at your local build:
+
+```jsonc
+{ "lsp": { "mise-lsp": { "binary": { "path": "/abs/zed-mise/mise-lsp/target/release/mise-lsp" } } } }
 ```
 
 ### Agent (MCP)
