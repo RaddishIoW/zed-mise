@@ -18,6 +18,9 @@ Mise through the three surfaces Zed actually exposes:
 - **Language + schema (`languages/mise/`, `src/lib.rs`):** registers a `Mise`
   language for `mise.toml` / `.mise.toml` / `mise.local.toml` (reusing the TOML
   grammar) and runs `taplo` against `https://mise.en.dev/schema/mise.json`.
+- **`.tool-versions` highlighting (`languages/tool-versions/`):** a vendored
+  tree-sitter grammar (`tree-sitter-tool-versions/`) highlighting tool names,
+  versions, and comments in asdf/mise `.tool-versions` files.
 - **MCP server (`mise-mcp/`):** a small native binary speaking MCP over stdio that
   shells out to your `mise` CLI. The extension downloads it from this repo's
   GitHub releases on first use.
@@ -103,4 +106,3 @@ from `which mise`:
   `#:schema` directive is a reliable fallback.
 - **`MISE_MCP_REPO`** in `src/lib.rs` is a placeholder for the release repo; set it
   to wherever the `mise-mcp` binaries are published before relying on auto-download.
-- `.tool-versions` highlighting is not yet included (would need a small grammar).
