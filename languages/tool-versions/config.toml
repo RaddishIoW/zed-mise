@@ -1,0 +1,5 @@
+name = "tool-versions"
+grammar = "tool_versions"
+# Matches `.tool-versions` and `tool-versions` (suffix match includes the dotfile).
+path_suffixes = ["tool-versions"]
+line_comments = ["# "]
