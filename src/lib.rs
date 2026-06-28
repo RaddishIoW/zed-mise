@@ -190,6 +190,10 @@ impl zed::Extension for MiseExtension {
             "taplo": {
                 "schema": {
                     "enabled": true,
+                    // Empty catalogs prevents Taplo from fetching the remote schema
+                    // catalog, whose format has changed and causes a SchemaCatalog
+                    // deserialization error. Our explicit associations are sufficient.
+                    "catalogs": [],
                     "associations": {
                         ".*mise(\\.[^/]+)?\\.toml$": MISE_SCHEMA_URL,
                         ".*mise/config\\.toml$": MISE_SCHEMA_URL

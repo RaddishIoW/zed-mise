@@ -1,6 +1,6 @@
 id = "mise"
 name = "Mise"
-version = "0.1.0"
+version = "0.1.1"
 schema_version = 1
 authors = ["raddish <raddishiow@gmail.com>"]
 description = "Mise integration for Zed: schema-aware config editing, task-runner sync, and an MCP server for managing tools, tasks, and configuration."

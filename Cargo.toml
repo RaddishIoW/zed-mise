@@ -4,7 +4,7 @@
 # crate via its own `[workspace]` table, so Zed's wasm build never touches it.
 [package]
 name = "zed_mise"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 publish = false
 license = "MIT"
